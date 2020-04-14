@@ -7,8 +7,11 @@
 //
 
 import UIKit
+import StoreKit
 
 class QuoteTableViewController: UITableViewController {
+    
+    let productID = "com.resultoconsultoria.InspoQuotes.PremiumQuotes"
     
     var quotesToShow = [
         "Our greatest glory is not in never falling, but in rising every time we fall. — Confucius",
@@ -30,71 +33,79 @@ class QuoteTableViewController: UITableViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        
+        SKPaymentQueue.default().add(self)
 
-        // Uncomment the following line to preserve selection between presentations
-        // self.clearsSelectionOnViewWillAppear = false
-
-        // Uncomment the following line to display an Edit button in the navigation bar for this view controller.
-        // self.navigationItem.rightBarButtonItem = self.editButtonItem
     }
 
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        // #warning Incomplete implementation, return the number of sections
-        return 0
+        1
     }
 
+    override func tableView(_ tableView: UITableView, titleForHeaderInSection
+                                section: Int) -> String? {
+       if section == 0 {
+           return "Free Quotes"
+       } else if section == 1 {
+           return "Premium Quotes"
+       } else { return nil }
+    }
+    
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
-        // #warning Incomplete implementation, return the number of rows
-        return 0
+        if section == 0 {
+            return quotesToShow.count + 1
+        } else if section == 1 {
+            return premiumQuotes.count
+        } else { return 0 }
     }
 
-    /*
+    
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let cell = tableView.dequeueReusableCell(withIdentifier: "reuseIdentifier", for: indexPath)
-
-        // Configure the cell...
-
+        let cell = tableView.dequeueReusableCell(withIdentifier: "QuoteCell", for: indexPath)
+        
+        cell.textLabel?.numberOfLines = 0
+        
+        if indexPath.section == 0 {
+            if indexPath.row < quotesToShow.count {
+                cell.textLabel?.text = quotesToShow[indexPath.row]
+            } else {
+                cell.textLabel?.text = "Tell me more!!"
+                cell.textLabel?.textColor = #colorLiteral(red: 0.501960814, green: 0.501960814, blue: 0.501960814, alpha: 1)
+                cell.accessoryType = .disclosureIndicator
+            }
+        } else if indexPath.section == 1 {
+            cell.textLabel?.text = premiumQuotes[indexPath.row]
+        }
+        
         return cell
     }
-    */
+    
 
-    /*
-    // Override to support conditional editing of the table view.
-    override func tableView(_ tableView: UITableView, canEditRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the specified item to be editable.
-        return true
+    // MARK: - Table View Delegate Methods
+    
+    override func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        if indexPath.section == 0 && indexPath.row == quotesToShow.count {
+            buyPremiumQuotes()
+        }
+        
+        tableView.deselectRow(at: indexPath, animated: true)
     }
-    */
 
-    /*
-    // Override to support editing the table view.
-    override func tableView(_ tableView: UITableView, commit editingStyle: UITableViewCellEditingStyle, forRowAt indexPath: IndexPath) {
-        if editingStyle == .delete {
-            // Delete the row from the data source
-            tableView.deleteRows(at: [indexPath], with: .fade)
-        } else if editingStyle == .insert {
-            // Create a new instance of the appropriate class, insert it into the array, and add a new row to the table view
-        }    
+    // MARK: - In-App Purchase Methods
+
+    func buyPremiumQuotes() {
+        if SKPaymentQueue.canMakePayments() {
+            let paymentRequest = SKMutablePayment()
+            paymentRequest.productIdentifier = productID
+            SKPaymentQueue.default().add(paymentRequest)
+            
+        } else {
+            print("User can't make payments")
+        }
     }
-    */
-
-    /*
-    // Override to support rearranging the table view.
-    override func tableView(_ tableView: UITableView, moveRowAt fromIndexPath: IndexPath, to: IndexPath) {
-
-    }
-    */
-
-    /*
-    // Override to support conditional rearranging of the table view.
-    override func tableView(_ tableView: UITableView, canMoveRowAt indexPath: IndexPath) -> Bool {
-        // Return false if you do not want the item to be re-orderable.
-        return true
-    }
-    */
-
+    
     /*
     // MARK: - Navigation
 
@@ -106,12 +117,47 @@ class QuoteTableViewController: UITableViewController {
     */
     
     
-    
-    
-    
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {
         
     }
 
+}
+
+// MARK: - Payment Transaction Observer
+
+extension QuoteTableViewController: SKPaymentTransactionObserver {
+    
+    func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
+        for transaction in transactions {
+            switch transaction.transactionState {
+            case .purchased:
+                //Payment successful
+                print("Transaction successful!")
+                
+                SKPaymentQueue.default().finishTransaction(transaction)
+            case .failed:
+                //Payment failed
+                print("Transaction failed!")
+                
+                if let error = transaction.error {
+                    let description = error.localizedDescription
+                    print("Transaction failed due: \(description)")
+                }
+                
+                SKPaymentQueue.default().finishTransaction(transaction)
+            case .purchasing:
+                
+                print("Purchasing....")
+            case .restored:
+                
+                print("Purchase Restored!")
+                SKPaymentQueue.default().finishTransaction(transaction)
+            default:
+                print(transaction.transactionState)
+                
+            }
+        }
+    }
 
 }
+
