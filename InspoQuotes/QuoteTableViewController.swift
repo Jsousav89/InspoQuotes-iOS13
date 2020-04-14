@@ -12,6 +12,7 @@ import StoreKit
 class QuoteTableViewController: UITableViewController {
     
     let productID = "com.resultoconsultoria.InspoQuotes.PremiumQuotes"
+    var enabledSections = 1
     
     var quotesToShow = [
         "Our greatest glory is not in never falling, but in rising every time we fall. — Confucius",
@@ -35,13 +36,16 @@ class QuoteTableViewController: UITableViewController {
         super.viewDidLoad()
         
         SKPaymentQueue.default().add(self)
+        if isPurchased() {
+            showPremiumQuotes()
+        }
 
     }
 
     // MARK: - Table view data source
 
     override func numberOfSections(in tableView: UITableView) -> Int {
-        1
+        enabledSections
     }
 
     override func tableView(_ tableView: UITableView, titleForHeaderInSection
@@ -55,7 +59,7 @@ class QuoteTableViewController: UITableViewController {
     
     override func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
         if section == 0 {
-            return quotesToShow.count + 1
+            return enabledSections == 1 ? quotesToShow.count + 1 : quotesToShow.count
         } else if section == 1 {
             return premiumQuotes.count
         } else { return 0 }
@@ -70,13 +74,15 @@ class QuoteTableViewController: UITableViewController {
         if indexPath.section == 0 {
             if indexPath.row < quotesToShow.count {
                 cell.textLabel?.text = quotesToShow[indexPath.row]
-            } else {
+            } else if enabledSections == 1 {
                 cell.textLabel?.text = "Tell me more!!"
                 cell.textLabel?.textColor = #colorLiteral(red: 0.501960814, green: 0.501960814, blue: 0.501960814, alpha: 1)
                 cell.accessoryType = .disclosureIndicator
             }
         } else if indexPath.section == 1 {
             cell.textLabel?.text = premiumQuotes[indexPath.row]
+            cell.textLabel?.textColor = nil
+            cell.accessoryType = .none
         }
         
         return cell
@@ -106,6 +112,15 @@ class QuoteTableViewController: UITableViewController {
         }
     }
     
+    func showPremiumQuotes() {
+        enabledSections = 2
+        tableView.reloadData()
+    }
+    
+    func isPurchased() -> Bool {
+        UserDefaults.standard.bool(forKey: productID)
+    }
+    
     /*
     // MARK: - Navigation
 
@@ -118,7 +133,7 @@ class QuoteTableViewController: UITableViewController {
     
     
     @IBAction func restorePressed(_ sender: UIBarButtonItem) {
-        
+        SKPaymentQueue.default().restoreCompletedTransactions()
     }
 
 }
@@ -130,9 +145,14 @@ extension QuoteTableViewController: SKPaymentTransactionObserver {
     func paymentQueue(_ queue: SKPaymentQueue, updatedTransactions transactions: [SKPaymentTransaction]) {
         for transaction in transactions {
             switch transaction.transactionState {
-            case .purchased:
+            case .purchased, .restored:
                 //Payment successful
                 print("Transaction successful!")
+                showPremiumQuotes()
+                
+                UserDefaults.standard.set(true, forKey: productID)
+                
+                navigationItem.setRightBarButton(nil, animated: true)
                 
                 SKPaymentQueue.default().finishTransaction(transaction)
             case .failed:
@@ -148,10 +168,7 @@ extension QuoteTableViewController: SKPaymentTransactionObserver {
             case .purchasing:
                 
                 print("Purchasing....")
-            case .restored:
-                
-                print("Purchase Restored!")
-                SKPaymentQueue.default().finishTransaction(transaction)
+
             default:
                 print(transaction.transactionState)
                 
